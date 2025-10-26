@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app)  # فعال کردن CORS
 
 # Load model
-model = tf.keras.models.load_model("eye_model.h5")
+model = tf.keras.models.load_model("eye_modelv2.h5")
 IMG_SIZE = (224, 224)
 class_names = ["No DR", "Mild", "Moderate", "Severe", "Proliferative DR"]
 
