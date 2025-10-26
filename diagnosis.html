@@ -1,0 +1,38 @@
+<!-- فقط بخش JS مربوطه -->
+<script>
+const form = document.getElementById("uploadForm"); // یا المنت های قبلی تو
+const resultDiv = document.getElementById("result");
+const preview = document.getElementById("preview"); // اگر داری
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  resultDiv.innerText = "در حال پردازش...";
+  const fileInput = form.querySelector('input[name="image"]');
+  if (!fileInput.files.length) return alert("لطفا فایل انتخاب کنید");
+
+  const file = fileInput.files[0];
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove("hidden");
+
+  const fd = new FormData();
+  fd.append("image", file);
+
+  try {
+    // به جای HF مستقیم، آدرس سرویس خودت در Render را اینجا بگذار
+    const proxyUrl = "https://your-app.onrender.com/predict";
+    const res = await fetch(proxyUrl, { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      resultDiv.innerText = "خطا: " + (data.error || JSON.stringify(data));
+    } else {
+      // data از HF Space برمی‌گردد. معمولاً data.data[0] حاوی متن پیش‌بینی است
+      const predictionText = (data.data && data.data[0]) ? data.data[0] : JSON.stringify(data);
+      resultDiv.innerHTML = `<strong>نتیجه مدل:</strong> ${predictionText}`;
+    }
+  } catch (err) {
+    console.error(err);
+    resultDiv.innerText = "خطا در اتصال به سرویس.";
+  }
+});
+</script>
