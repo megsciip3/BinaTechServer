@@ -1,33 +1,35 @@
-# app.py
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+import numpy as np
+from PIL import Image
+import tensorflow as tf
 import requests
-import base64
-import os
+from io import BytesIO
 
 app = Flask(__name__)
+CORS(app)  # فعال کردن CORS
 
-# آدرس Space شما (دقت کن نام دقیق space را بگذاری)
-HF_SPACE_API = "https://huggingface.co/spaces/megsciip/Bina_Tech/api/predict"
+# Load model
+model = tf.keras.models.load_model("eye_model.h5")
+IMG_SIZE = (224, 224)
+class_names = ["No DR", "Mild", "Moderate", "Severe", "Proliferative DR"]
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    # دریافت فایل image از فرم-data
-    if 'image' not in request.files:
-        return jsonify({"error":"no image provided"}), 400
+    if "image" not in request.files:
+        return jsonify({"error": "No image uploaded"}), 400
 
-    file = request.files['image']
-    # خواندن بایت‌های تصویر و تبدیل به base64
-    b = file.read()
-    b64 = base64.b64encode(b).decode('utf-8')
+    img_file = request.files["image"]
+    img = Image.open(img_file).convert("RGB").resize(IMG_SIZE)
+    arr = np.array(img)/255.0
+    arr = np.expand_dims(arr, axis=0)
 
-    # ساخت payload مطابق با API Space (data: [base64])
-    payload = {"data": [b64]}
+    preds = model.predict(arr)[0]
+    idx = int(np.argmax(preds))
+    confidence = float(np.max(preds))
+    label = class_names[idx]
 
-    try:
-        # ارسال به Space (سرور به سرور)
-        resp = requests.post(HF_SPACE_API, json=payload, timeout=60)
-        resp.raise_for_status()
-    except Exception as e:
-        return jsonify({"error": "error contacting HF Space", "detail": str(e)}), 500
+    return jsonify({"result": label, "confidence": confidence})
 
-    return jsonify(resp.json())
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
