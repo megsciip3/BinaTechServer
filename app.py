@@ -1,22 +1,26 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import tensorflow as tf
 from PIL import Image
 import numpy as np
+import tensorflow as tf
+import os
 
 # ---------- ایجاد اپلیکیشن ----------
 app = Flask(__name__)
-CORS(app)  # اجازه دسترسی از Frontend
+CORS(app)
 
-# ---------- بارگذاری مدل ----------
-model = tf.keras.models.load_model("eye_modelv2.h5")  # مسیر و نام مدل خودت
+# ---------- بارگذاری مدل TFLite ----------
+tflite_model_path = "eye_modelv2.tflite"  # فایل باید کنار app.py باشد
+if not os.path.exists(tflite_model_path):
+    raise FileNotFoundError(f"فایل مدل پیدا نشد: {tflite_model_path}")
+
+interpreter = tf.lite.Interpreter(model_path=tflite_model_path)
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
+
 IMG_SIZE = (224, 224)
 class_names = ["No DR", "Mild", "Moderate", "Severe", "Proliferative DR"]
-
-# ---------- route اصلی برای تست ----------
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "Server is running! Use /predict endpoint."})
 
 # ---------- تعریف endpoint /predict ----------
 @app.route("/predict", methods=["POST"])
@@ -28,20 +32,23 @@ def predict():
     try:
         # پردازش تصویر
         img = Image.open(file).convert("RGB").resize(IMG_SIZE)
-        arr = np.array(img) / 255.0
+        arr = np.array(img, dtype=np.float32) / 255.0
         arr = np.expand_dims(arr, axis=0)
 
-        # پیش‌بینی
-        preds = model.predict(arr)[0]
+        # پیش‌بینی با TFLite
+        interpreter.set_tensor(input_details[0]['index'], arr)
+        interpreter.invoke()
+        preds = interpreter.get_tensor(output_details[0]['index'])[0]
+
         idx = int(np.argmax(preds))
         confidence = float(np.max(preds))
         label = class_names[idx]
 
-        # خروجی JSON
         return jsonify({"result": label, "confidence": confidence})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 # ---------- اجرای سرویس ----------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    port = int(os.environ.get("PORT", 5000))  # Render پورت را ارائه می‌دهد
+    app.run(host="0.0.0.0", port=port)
