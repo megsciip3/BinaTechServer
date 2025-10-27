@@ -13,6 +13,11 @@ model = tf.keras.models.load_model("eye_modelv2.h5")  # مسیر و نام مد�
 IMG_SIZE = (224, 224)
 class_names = ["No DR", "Mild", "Moderate", "Severe", "Proliferative DR"]
 
+# ---------- route اصلی برای تست ----------
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "Server is running! Use /predict endpoint."})
+
 # ---------- تعریف endpoint /predict ----------
 @app.route("/predict", methods=["POST"])
 def predict():
