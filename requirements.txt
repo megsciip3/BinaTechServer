@@ -1,9 +1,5 @@
 flask
 flask-cors
 tensorflow
-<<<<<<< HEAD
 pillow
 gunicorn
-=======
-pillow
->>>>>>> dbab3e2355cef71ecf85c125ccedfdddfb683604
